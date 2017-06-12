@@ -1,0 +1,8 @@
+.Rproj.user
+.Rhistory
+.RDataTmp
+*.Rproj
+.RData
+.Ruserdata
+data/
+R/temp/
