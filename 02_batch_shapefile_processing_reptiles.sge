@@ -1,0 +1,28 @@
+#!/bin/bash
+# Job name
+#$ -N process_reptiles
+# Email notifications
+#$ -m bea
+#$ -M a.krystalli@sheffield.ac.uk
+# Request a certain number of cores on one node
+#$ -pe smp 8
+# Request a certain amount of RAM _per_core_
+#$ -l rmem=4G
+# Run job from current directory
+#$ -cwd
+#$ -j y
+#$ -o logs/$JOB_ID
+
+# Set this environment variable to the number of cores requested above
+# export OMP_NUM_THREADS=8
+
+# Load a version of R
+module load apps/R/3.4.0/gcc-4.8.5
+
+# Load compiled libraries needed for geospatial work
+module load libs/gdal/2.2.0/gcc/gcc-4.9.4
+module load libs/proj/4.9.3/gcc-4.9.4
+module load libs/geos/3.6.1/gcc-4.9.4
+
+# batch script. Values after script are exported args to R script
+Rscript 02_Shapefile_processing_reptiles.R 8 tmp
