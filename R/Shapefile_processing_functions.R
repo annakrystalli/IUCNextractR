@@ -5,16 +5,47 @@
 
 #____________________________________________________________________________
 
+#' Get statistics of an environmental parameter across a species range
+#' 
+#' The function takes as input an IUCN SpatialPolygonDataFrame of a species range 
+#' and a RasterLayer or RasterStack of environmental parameters for which range 
+#' wide statistics are to be calculated
+#' 
+#'
+#' @param spp_name character string. Name of species
+#' @param spp_shp IUCN SpatialPolygonDataFrame of species range
+#' @param env_name character string. Name of environmental parameter
+#' @param env_raster  RasterLayer or RasterStack of environmental parameters
+#' @param env_layers named integer vector. Index of which layers within a RasterStack 
+#' to be subset. Names of vector to be used to label layer level results.
+#' @param presence integer vector. Identify IUCN presence categories to restrict analysis to.
+#' @param seasonal integer vector. Identify IUCN seasonal categories to restrict analysis to.
+#' @param e_statistics name of summary functions to be applied to environmental 
+#' @param fixholes 
+#'
+#' @return a tibble. Columns include: 
+#' * `spp_name`
+#' * `env_name`
+#' * `layer_id`: the env_layers indices
+#' * `layer_name`: the name of each layer (as supplied through the names of `env_layers``)
+#' * `area`: The area of the range the extraction was restricted to (if at all) by `presence` or `seasonal`
+#' * $n$ columns the length of `e_statistics`: containing the statistical summaries specified across the range
+#' * `error`: error message. NA if no error encountered.
+#' @md
+#' @export
+#'
+#' @examples
 get_spp_e_stats <- function(spp_name, spp_shp, env_name, env_raster, 
                               env_layers = NULL, presence = 1:2, seasonal = 1:4, 
                               e_statistics = c("weighted.mean", "max", "min", "weighted.var", "weighted.median"),
-                              fixholes = T){
+                              fixholes = F){
     
-    if(nrow(spp_shp@data) == 0){
+    # check that spp_shp has polygons
+    if(length(spp_shp@polygons) == 0){
         return(error_out(spp_name, env_name, e_statistics, error = "no polys"))
     }
     
-    # subset shapefile
+    # subset shapefile. Return error if subsetting returns no matching polygons
     names(spp_shp@data) <- tolower(names(spp_shp@data))
     spp_shp <- spp_shp[spp_shp$presence %in% presence,]
     if(nrow(spp_shp@data) == 0){
@@ -24,6 +55,7 @@ get_spp_e_stats <- function(spp_name, spp_shp, env_name, env_raster,
     if(nrow(spp_shp@data) == 0){
         return(error_out(spp_name, env_name, e_statistics, error = "no seasonal"))
     }
+    
     if(fixholes){spp_shp <- fix.holes(spp_shp)}
     
     
@@ -40,7 +72,7 @@ get_spp_e_stats <- function(spp_name, spp_shp, env_name, env_raster,
     env_mask <- raster::mask(env_raster[[1]], spp_shp)
     pix_info <- tibble(pix_id = raster::Which(!is.na(env_mask), cells=T)) 
     pix_info <- bind_cols(pix_info, as.tibble(xyFromCell(env_mask, pix_info$pix_id))) %>%
-        mutate(wts = latWts(y, xres(env_raster), yres(env_raster)))
+        mutate(wts = raster::extract(area(env_mask, na.rm = T, weights = T), pix_info$pix_id))
     # if no non NA pixels can be extracted, return data row with error
     if(nrow(pix_info) == 0){
         return(error_out(spp_name, env_name, e_statistics, error = "no non-NA data extracted"))
@@ -60,13 +92,6 @@ get_spp_e_stats <- function(spp_name, spp_shp, env_name, env_raster,
   return(out)}
 
 # ---- Helpers ----
-# create output folder to save outputs in.
-create_output_folders <- function(out.dir) {
-    dir.create(path = paste(out.dir, "processed_shp/", sep = ""), showWarnings = F)
-    dir.create(path = paste(out.dir, "range_data/", sep = ""), showWarnings = F)
-    dir.create(path = paste(out.dir, "error_reports/", sep = ""), showWarnings = F)
-}
-
 # fixholes in Spatial Polygon (SP) object
 fix.holes <- function(sp.obj) {
     require(rgeos)
@@ -79,8 +104,9 @@ fix.holes <- function(sp.obj) {
 }
 
 
-# Calculate latitudinal weights for environmental variables. Used to correct
-# calculation of region wide statistics
+# Calculate latitudinal weights for environmental variables. Used to weight pixel contribution 
+# as longitutinal size changes with latitude to correctly calculate region wide statistics.
+# Only aplied when weigthed means selected
 latWts <- function(lats, xres, yres){
     l <- cos((lats-yres/2)*pi/180)^2 *cos(xres*pi/180)
     l0 <- cos(mean(lats-yres/2)*pi/180)^2 *cos(xres*pi/180)
