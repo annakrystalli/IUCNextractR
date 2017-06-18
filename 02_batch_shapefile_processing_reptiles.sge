@@ -25,4 +25,4 @@ module load libs/proj/4.9.3/gcc-4.9.4
 module load libs/geos/3.6.1/gcc-4.9.4
 
 # batch script. Values after script are exported args to R script
-Rscript 02_Shapefile_processing_reptiles.R 8 tmp
+Rscript 02_Shapefile_processing_reptiles.R 8 tmp /fastdata/ac1adk/IUCNExtractR/
