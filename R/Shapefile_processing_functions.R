@@ -35,11 +35,15 @@
 #' @export
 #'
 #' @examples
-get_spp_e_stats <- function(spp_name, spp_shp, env_name, env_raster, 
+get_spp_e_stats <- function(spp_name, spp_shp, dsn = NULL, env_name, env_raster, 
                               env_layers = NULL, presence = 1:2, seasonal = 1:4, 
                               e_statistics = c("weighted.mean", "max", "min", "weighted.var", "weighted.median"),
                               fixholes = F){
-    
+    t0 <- Sys.time()
+    cat("----------++ processing: ", spp_name, "++--------", "\n")
+    if(!grepl("SpatialPolygon", class(spp_shp))){
+        spp_shp <- readOGR(dsn = dsn, spp_shp)
+    }
     # check that spp_shp has polygons
     if(length(spp_shp@polygons) == 0){
         return(error_out(spp_name, env_name, e_statistics, error = "no polys"))
@@ -72,7 +76,8 @@ get_spp_e_stats <- function(spp_name, spp_shp, env_name, env_raster,
     env_mask <- raster::mask(env_raster[[1]], spp_shp)
     pix_info <- tibble(pix_id = raster::Which(!is.na(env_mask), cells=T)) 
     pix_info <- bind_cols(pix_info, as.tibble(xyFromCell(env_mask, pix_info$pix_id))) %>%
-        mutate(wts = raster::extract(area(env_mask, na.rm = T, weights = T), pix_info$pix_id))
+        mutate(wts = raster::extract(raster::area(env_mask, na.rm = T, weights = T),
+                                     pix_info$pix_id))
     # if no non NA pixels can be extracted, return data row with error
     if(nrow(pix_info) == 0){
         return(error_out(spp_name, env_name, e_statistics, error = "no non-NA data extracted"))
@@ -89,6 +94,8 @@ get_spp_e_stats <- function(spp_name, spp_shp, env_name, env_raster,
                       area = env_mask %>% raster::area(na.rm=TRUE) %>% cellStats("sum"),
                       area_lost = area_lost(env_raster, spp_shp),
                       .before = 1) %>% add_column(error = NA)
+    cat("##______________$$ COMPLETE: ", spp_name, "$$____________##", "\n")
+    cat("TIME ELAPSED:", Sys.time() - t0, "\n", "\n")
   return(out)}
 
 # ---- Helpers ----

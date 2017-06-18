@@ -1,5 +1,5 @@
 #rm(list=ls())
-
+sessionInfo()
 # ---- install-depend ----
 source("R/dependencies.R")
 
@@ -7,48 +7,49 @@ if (!require("pacman")) install.packages("pacman")
 pacman::p_unload()
 pacman::p_load(depend, character.only = T)
 
+## ---- extract-cmd ----
+# extract command line arguments (if applicable)
+if(length(commandArgs(trailingOnly = TRUE)) == 0){
+    cores <- detectCores() - 1
+    env_name <- "tmp"
+    wd <- ""
+    }else{
+        cores <- as.numeric(commandArgs(trailingOnly = TRUE)[1])
+        env_name <- as.character(commandArgs(trailingOnly = TRUE)[2])
+        wd <- as.character(commandArgs(trailingOnly = TRUE)[3])
+    }
+cat("*** Analysis paramenters ***", "\n",
+    "ncores: ", cores, "\n", 
+    "env_name: ", env_name, "\n",
+    "WD: ", wd, "\n",
+    "_____________________________________________", "\n")
+
 # ---- functions ----
-#UPDATE:setwd to folder in which scripts have been saved
-#setwd("~/Documents/workflows/Sex Roles in Birds/birds/")
 source("R/Shapefile_processing_functions.R")
 source("R/custom_functions.R")
 
 
 # ---- extract-setup ----
-# UPDATE if not checked out from the repo
-#output.folder <- "outputs/"
-dir.create(path = "outputs/data/" , showWarnings = F)
-#create_output_folders(out.dir)
-
 ## ---- single-shp ----
 # Because polygon data for all species is in a single file, load it as master.shp
 dsn <- "data/inputs/shp/REPTILES/"
 layer <- "REPTILES" # name of the master.shp without .shp
 master.shp <- readOGR(dsn = dsn, layer)
 # check the names of the @data slot within the .shp (MANUAL) and define master.shp_spp.names 
+# (ie the column containing species names) 
 names(master.shp@data)
 master.shp_spp.names <- "binomial"
+# make sure species names are separated by "_".
 master.shp@data[,master.shp_spp.names] <- gsub(" ", "_", master.shp@data[,master.shp_spp.names])
-# PROVIDE master.shp AND master.shp_spp.names AS ARGUMENTS TO getSppRow()
+# PROVIDE master.shp AND master.shp_spp.names AS ARGUMENTS TO get_spp_e_stats()
 species <- unique(master.shp@data[,master.shp_spp.names])
 
-## ---- multiple-shp ----
-# if individual polygons are in individual files, these will be loaded within 
-# getSppRow() function, spp.files should be the names of the .shp files contained 
-# in the shapefile folder
-# spp.files <- list.files(wd.spp, pattern = ".shp")
-
-# make vector of variable names
-
-
-# ---- select data ----
-if(length(commandArgs(trailingOnly = TRUE)) == 0){
-    env_name <- "tmp"}else{
-        env_name <- as.character(commandArgs(trailingOnly = TRUE)[2])
-        cat("env_name: ", env_name, "\n")
-    }
-
-env_raster <- stack(paste0("data/inputs/raster/", env_name,".grd"))
+# ---- load environmental raster data ----
+env_raster <- stack(paste0(wd, "data/inputs/raster/", env_name,".grd"))
+if(exists("env_raster")){cat("env_raster file", 
+    paste0(wd, "data/inputs/raster/", env_name,".grd"), " loaded successfully", "\n")}else{
+    cat("ERROR: env_raster not loaded", "\n")
+}
 env_dat <- mm_yyyy_df.rs(env_raster) %>% 
     filter(year >= 1960 & year <= 1990)
 env_layers <- setNames(env_dat$layer, env_dat$code)
@@ -69,21 +70,23 @@ env_layers <- setNames(env_dat$layer, env_dat$code)
 #   shp@data$seasonal & shp@data$presence respectively. Only applies if master.shp is supplied.
 # ---- register-cluster ----
 
-if(length(commandArgs(trailingOnly = TRUE)) == 0){
-    cores <- detectCores() - 1}else{
-        cores <- as.numeric(commandArgs(trailingOnly = TRUE)[1])
-        cat("ncores: ", cores)
-    }
+
 # register cores
 registerDoParallel(cores = cores)
-
+cat("---------++++ LAUNCH PARALLEL WORKFLOW ++++----------", "\n")
 spp.dat.parallel <- foreach(x = species, .combine = rbind,
                             .inorder = F, .errorhandling = "remove") %dopar%{
                                 #pacman::p_load(depend, character.only = T)
-                                get_spp_e_stats(spp_name = x, spp_shp = master.shp[master.shp@data[,master.shp_spp.names] == x,], env_name, env_raster, 
+                                get_spp_e_stats(spp_name = x, 
+                                                spp_shp = master.shp[master.shp@data[,master.shp_spp.names] == x,], 
+                                                dsn = NULL, 
+                                                env_name, env_raster, 
                                                 env_layers, presence = 1:5, seasonal = 1:2, 
-                                                e_statistics = c("weighted.mean", "max", "min", "weighted.var", "spatstat::weighted.median"),
+                                                e_statistics = c("weighted.mean", "max", "min", "weighted.var", "weighted.median"),
                                                 fixholes = F)
                             }
-
-write_csv(paste0("outputs/data/", Sys.Date(), "_", layer,"_", env_name, ".csv"))
+cat("--- COMPLETE ---", "\n")
+print(spp.dat.parallel)
+write_csv(spp.dat.parallel, paste0(wd, "data/outputs/data/", Sys.Date(), "_", layer,"_", env_name, ".csv"))
+cat("$$$_____**** OUTPUTS SAVED as", paste0(wd, "data/outputs/data/", Sys.Date(), "_", layer,"_", env_name, ".csv")
+    ," ****_____$$$", "\n")
