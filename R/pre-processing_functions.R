@@ -47,7 +47,7 @@ stack.shp <- function(shp_list = NULL, files = NULL, out_dsn = NULL, out_layer =
     }
     if(!is.null(shp_list)){
         spdf_cols <- sapply(shp_list, FUN = ncol)
-        if(spdf_cols %>% unique != 1){
+        if(spdf_cols %>% unique %>% length() != 1){
             df_temp <- shp_list[[which(spdf_cols == max(spdf_cols))[1]]]@data[0,]
             shp_list <- lapply(shp_list, FUN = std_shp_list, df_temp = df_temp)
         }
