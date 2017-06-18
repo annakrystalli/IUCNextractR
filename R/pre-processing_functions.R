@@ -40,13 +40,21 @@ stack.stk <- function(files, out_dir = NULL, fname){
 #'
 #' @examples
 stack.shp <- function(shp_list = NULL, files = NULL, out_dsn = NULL, out_layer = NULL) {
+
+    t1 <- Sys.time()
     if(all(is.null(shp_list), is.null(files))){
         stop("no shp_list or vector of .shp file paths supplied")
     }
     if(!is.null(shp_list)){
+        spdf_cols <- sapply(shp_list, FUN = ncol)
+        if(spdf_cols %>% unique != 1){
+            df_temp <- shp_list[[which(spdf_cols == max(spdf_cols))[1]]]@data[0,]
+            shp_list <- lapply(shp_list, FUN = std_shp_list, df_temp = df_temp)
+        }
         shp <- do.call(rbind, shp_list)
     }else{
         for(file in files){
+            t0 <- Sys.time()
             cat("____________________________________________________________", "\n")
             cat("processing shapefile: ", which(files == file), "\n")
             
@@ -54,16 +62,20 @@ stack.shp <- function(shp_list = NULL, files = NULL, out_dsn = NULL, out_layer =
                 shp <- readOGR(dsn = file, 
                                gsub(".shp", "", 
                                     basename(as.character(file))))
+                crs(shp) <- crs("+init=epsg:4326")
                 df_temp <- shp@data[0,]
             }else{
-                add.shp <-  readOGR(dsn = file, 
+                add.shp <-  try(readOGR(dsn = file, 
                                     gsub(".shp", "", 
-                                         basename(as.character(file))))
+                                         basename(as.character(file)))))
+                if(class(add.shp) == "try-error"){next}
+                crs(add.shp) <- crs("+init=epsg:4326")
                 add.shp <- add.shp[,names(add.shp) %in% names(df_temp)]
                 add.shp@data <- suppressWarnings(bind_rows(df_temp, add.shp@data))
                 shp <- rbind(shp, add.shp)
             }
-            cat("-----------------------------------------------------", "\n")
+            cat("loaded: ",file, "\n")
+            cat("time to load:", Sys.time() - t0, "\n", "\n")
         }
     }
     row.names(shp@data) <- 1:nrow(shp@data)
@@ -72,4 +84,12 @@ stack.shp <- function(shp_list = NULL, files = NULL, out_dsn = NULL, out_layer =
             writeOGR(shp, dsn = out_dsn, driver="ESRI Shapefile", layer= out_layer,
                      overwrite_layer=TRUE)
         }
+    cat("$$-------++++ PROCESS COMPLETE ++++----------------$$", "\n")
+    cat("TIME ELAPSED:", Sys.time() - t1, "\n", "\n")
+    }
+
+std_shp_list <- function(spdf, df_temp) {
+    spdf <- spdf[,names(spdf) %in% names(df_temp)]
+    spdf@data <- suppressWarnings(bind_rows(df_temp, spdf@data))
+    return(spdf)
 }
