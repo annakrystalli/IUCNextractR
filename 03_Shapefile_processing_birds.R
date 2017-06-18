@@ -1,7 +1,8 @@
 #rm(list=ls())
-sessionInfo()
+print(sessionInfo())
 # ---- install-depend ----
 source("R/dependencies.R")
+cat("dependencies: ", depend, "\n", "\n")
 
 if (!require("pacman")) install.packages("pacman")
 pacman::p_unload()
@@ -44,7 +45,7 @@ master.shp <- readOGR(dsn = dsn, layer)
 # check the names of the @data slot within the .shp (MANUAL) and define master.shp_spp.names 
 # (ie the column containing species names) 
 names(master.shp@data)
-master.shp_spp.names <- "binomial"
+master.shp_spp.names <- "SCINAME"
 # make sure species names are separated by "_".
 master.shp@data[,master.shp_spp.names] <- gsub(" ", "_", master.shp@data[,master.shp_spp.names])
 # PROVIDE master.shp AND master.shp_spp.names AS ARGUMENTS TO get_spp_e_stats()

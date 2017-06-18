@@ -3,6 +3,7 @@
 print(sessionInfo())
 # ---- install-depend ----
 source("R/dependencies.R")
+cat("dependencies: ", depend, "\n", "\n")
 
 if (!require("pacman")) install.packages("pacman")
 pacman::p_unload()
