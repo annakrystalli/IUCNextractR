@@ -6,3 +6,5 @@
 .Ruserdata
 data/
 R/temp/
+04_test.R
+*batch*
