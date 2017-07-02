@@ -83,8 +83,11 @@ get_spp_e_stats <- function(spp_name, spp_shp, dsn = NULL, env_name, env_raster,
         return(error_out(spp_name, env_name, e_statistics, error = "no non-NA data extracted"))
     }
 
+    # calculate summary statistics definied in e_statistics across each layer.Format 
+    # into tibble.
     out <- as.tibble(raster::extract(env_raster, pix_info$pix_id)) %>%
-        map(map_e_statistics, wts = pix_info$wts, e_statistics) %>% as.tibble() %>% t() %>% as.tibble()
+        map(map_e_statistics, wts = pix_info$wts, e_statistics) %>% as.tibble() %>% 
+        t() %>% as.tibble()
     names(out) <- e_statistics
     out <- add_column(out,
                       species = spp_name,
@@ -113,13 +116,13 @@ fix.holes <- function(sp.obj) {
 
 # Calculate latitudinal weights for environmental variables. Used to weight pixel contribution 
 # as longitutinal size changes with latitude to correctly calculate region wide statistics.
-# Only aplied when weigthed means selected
+# Only aplied when weigthed means selected - SUPERCEEDED BY RASTER AREA WEIGHT MASK
 latWts <- function(lats, xres, yres){
     l <- cos((lats-yres/2)*pi/180)^2 *cos(xres*pi/180)
     l0 <- cos(mean(lats-yres/2)*pi/180)^2 *cos(xres*pi/180)
     l/l0}
 
-
+# create error row
 error_out <- function(spp_name, env_name, e_statistics, error) {
     out_names <- c("species", "env_name", "layer_id", "layer_name", "area", "area_lost", e_statistics, "error")
     out <- as.tibble(matrix(NA, nrow = 1, ncol = length(out_names))) %>%
@@ -128,7 +131,7 @@ error_out <- function(spp_name, env_name, e_statistics, error) {
     return(out)
 }
 
-
+# calculate area lost by range overlapping NA cells 
 area_lost <- function(env_raster, spp_shp) {
     area_rast <- env_raster[[1]]
     values(area_rast) <- 1

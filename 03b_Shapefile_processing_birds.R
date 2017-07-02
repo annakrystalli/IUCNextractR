@@ -1,3 +1,17 @@
+# The script extracts statistical summaries of environmental parameters, given 
+# as a raster stack, across IUCN species ranges, loaded from INDIVIDUAL SHAPEFILES.
+# -- NOT USED AS SLOWER THAN 03 -- but tested and functional. 
+# 
+# It designed to be run both locally and on a cluster. To parametarise analysis 
+# from a shell script, provide parameter values for `ncores` (the number of cores 
+#  to parallelise across), `env_name` (the name of the environmental raster stack 
+#   to load) and `WD` (the working directory on the cluster) in a call to Rscript. 
+#  (See 02_batch_shapefile_processing_reptiles.sge for example).
+
+# NOTE: The cru decadal NetCDF files have been stacked into a single raster stack
+# which is subset to the required period before analysis. Used function `stack.stk()`
+# from R/pre-processing_functions.R  
+
 #rm(list=ls())
 sessionInfo()
 # ---- install-depend ----
@@ -57,15 +71,21 @@ env_dat <- mm_yyyy_df.rs(env_raster) %>%
     filter(year >= 1996 & year <= 2015)
 env_layers <- setNames(env_dat$layer, env_dat$code)
 
-# ---- run-parallel ----
-# Run the function getSppRow across all species in analysis. 
-# - spp_name: the name of a species 
-#     - master.shp: The master shapefile 
-#     - master.shp_spp.names: The name of the column in shp@data in which species names 
-
-# - presence: presence IUCN categories to be included in analysis
-# ---- register-cluster ----
+# ---- extract-parallel ----
+# register cores
 registerDoParallel(cores = cores)
+# Launch parallel extraction: Run the function getSppRow across all species in analysis. 
+#   - spp_name: the name of a species shapefile to load
+#   - spp.shp: the name of the species shapefile to load
+#   - dsn: the path to the species shapefile folder
+#   - env_name: name of the environmental variable being extracted 
+#   - env_raster: the environmental raster stack to be extracted
+#   - env_layers: named vector of raster stack layer indices to be included, 
+#       named with the layer code.
+#   - presence: presence IUCN categories to be included in analysis
+#   - seasonal: seasonal IUCN categories to be included in analysis
+#   - e_statistics: what summary statistics to calculated on from the extracted 
+#       environmental values.
 cat("---------++++ LAUNCH PARALLEL WORKFLOW ++++----------", "\n")
 t0 <- Sys.time()
 spp.dat.parallel <- foreach(x = names(bird.files), .combine = rbind,
