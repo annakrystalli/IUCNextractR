@@ -137,7 +137,7 @@ area_lost <- function(env_raster, spp_shp) {
     values(area_rast) <- 1
     env_mask <- raster::mask(env_raster[[1]], spp_shp)
     lost <- env_mask %>% raster::area(na.rm=TRUE) %>% cellStats("sum") / raster::mask(area_rast, spp_shp) %>% raster::area(na.rm=TRUE) %>% cellStats("sum") 
-    if(lost == 1){return(NA)}else{return(lost)}
+    if(lost == 1){return(NA)}else{return(1 - lost)}
 }
 
 
