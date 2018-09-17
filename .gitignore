@@ -1,10 +1,9 @@
 .Rproj.user
 .Rhistory
 .RDataTmp
-*.Rproj
 .RData
 .Ruserdata
-data/
+data/*
 R/temp/
 04_test.R
 *batch*
