@@ -1,3 +1,12 @@
+---
+name: Set up GitHub Authentication
+about: Set up GitHub authentication through a Personal Access Token
+title: 'Set up GitHub Authentication'
+labels: 1/setup
+assignees: ''
+
+---
+
 # Set up GitHub Authentication
 
 Set up GitHub authentication through a Personal Access Token
