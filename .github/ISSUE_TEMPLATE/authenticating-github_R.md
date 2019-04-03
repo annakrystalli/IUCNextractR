@@ -1,3 +1,12 @@
+---
+name: Set up GitHub Authentication in R
+about: Set up GitHub authentication in R through a Personal Access Token
+title: 'Set up GitHub Authentication in R'
+labels: 1/setup
+assignees: ''
+
+---
+
 # Set up GitHub Access in R/Rstudio
 
 Set up GitHub authentication through a Personal Access Token in R
